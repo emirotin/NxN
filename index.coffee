@@ -4,7 +4,9 @@ clone = _.cloneDeep
 omit = _.reject
 isArray = _.isArray
 
-N = 3
+N = 4
+
+idx = [ 0...N ]
 
 log = (o) ->
   console.log util.inspect(o, { depth: null, colors: true })
@@ -15,36 +17,50 @@ buildOption = (i, j) ->
 
 buildOptions = ->
   res = []
-  for i in [ 0...N ]
-    for j in [ 0...N ]
+  for i in idx
+    for j in idx
       res.push buildOption(i, j)
   return res
 
 buildMatrix = ->
-  for i in [ 0...N ]
-    for j in [ 0...N ]
+  for i in idx
+    for j in idx
       buildOptions()
 
-exclude = (matrix, i, j, item) ->
+strictCompare = (e1, e2) -> e1 is e2
+
+fuzzyCompare = (e1, e2) ->
+  e1[0] is e2[0] or e1[1] is e2[1]
+
+exclude = (matrix, i, j, item, fuzzy) ->
   if not isArray matrix[i][j]
     return matrix
   matrix = clone matrix
+  compare = if fuzzy then fuzzyCompare else strictCompare
   matrix[i][j] = omit matrix[i][j], (element) ->
-    element[0] is item[0] or element[1] is item[1]
+    compare(element, item)
   if not matrix[i][j].length
     throw new Error('invalid')
   return reduce matrix, i, j
 
 reduce = (matrix, i, j) ->
-  if matrix[i][j].length > 1
+  if not isArray(matrix[i][j]) or matrix[i][j].length > 1
     return matrix
   item = matrix[i][j][0]
   matrix = clone matrix
   matrix[i][j] = item
-  for i_ in [ 0...N ]
-    for j_ in [ 0...N ]
+
+  for i_ in idx
+    for j_ in idx
       continue if i_ is i and j_ is j
       matrix = exclude matrix, i_, j_, item
+  for i_ in idx
+    continue if i_ is i
+    matrix = exclude matrix, i_, j, item, true
+  for j_ in idx
+    continue if j_ is j
+    matrix = exclude matrix, i, j_, item, true
+
   return matrix
 
 set = (matrix, i, j, item) ->
@@ -56,8 +72,8 @@ isCellComplete = (matrix, i, j) ->
   return not isArray matrix[i][j]
 
 isMatrixComplete = (matrix) ->
-  for i in [ 0...N ]
-    for j in [ 0...N ]
+  for i in idx
+    for j in idx
       return false if not isCellComplete matrix, i, j
   return true
 
@@ -68,8 +84,8 @@ fork = (matrices) ->
     minLength = Infinity
     i_ = 0
     j_ = 0
-    for i in [ 0...N ]
-      for j in [ 0...N ]
+    for i in idx
+      for j in idx
         if isArray(matrix[i][j]) and (l = matrix[i][j].length) < minLength
           i_ = i
           j_ = j
@@ -92,10 +108,8 @@ fork = (matrices) ->
 
 matrix = buildMatrix()
 
-for i in [ 0...N ]
+for i in idx
   matrix = set matrix, 0, i, buildOption(i, i)
-
-log matrix
 
 foundMatrix = fork [ matrix ]
 if foundMatrix?.found
