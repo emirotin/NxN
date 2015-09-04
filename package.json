@@ -1,0 +1,23 @@
+{
+  "name": "nxn",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "lodash": "^3.10.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emirotin/NxN.git"
+  },
+  "author": "Eugene Mirotin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/emirotin/NxN/issues"
+  },
+  "homepage": "https://github.com/emirotin/NxN#readme"
+}
