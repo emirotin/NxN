@@ -1,67 +1,68 @@
 util = require 'util'
 _ = require 'lodash'
 clone = _.cloneDeep
-omit = _.without
+omit = _.reject
+isArray = _.isArray
 
 N = 3
 
 log = (o) ->
   console.log util.inspect(o, { depth: null, colors: true })
 
-letters = ( String.fromCharCode(97 + i) for i in [ 0...N ] )
-numbers = [ 1..N ]
+buildOption = (i, j) ->
+  letter = String.fromCharCode(65 + i)
+  letter + (j + 1)
 
 buildOptions = ->
-  letter: clone letters
-  number: clone numbers
+  res = []
+  for i in [ 0...N ]
+    for j in [ 0...N ]
+      res.push buildOption(i, j)
+  return res
 
 buildMatrix = ->
-  ( ( buildOptions() for i in [ 1..N ] ) for j in [ 1..N ] )
+  for i in [ 0...N ]
+    for j in [ 0...N ]
+      buildOptions()
 
-exclude = (key, matrix, i, j, item) ->
-  if not matrix[i][j][key]?
+exclude = (matrix, i, j, item) ->
+  if not isArray matrix[i][j]
     return matrix
   matrix = clone matrix
-  matrix[i][j][key] = omit matrix[i][j][key], item
-  if not matrix[i][j][key]?.length
+  matrix[i][j] = omit matrix[i][j], (element) ->
+    element[0] is item[0] or element[1] is item[1]
+  if not matrix[i][j].length
     throw new Error('invalid')
-  return reduce key, matrix, i, j
+  return reduce matrix, i, j
 
-reduce = (key, matrix, i, j) ->
-  if matrix[i][j][key].length > 1
+reduce = (matrix, i, j) ->
+  if matrix[i][j].length > 1
     return matrix
-  item = matrix[i][j][key][0]
+  item = matrix[i][j][0]
   matrix = clone matrix
-  delete matrix[i][j][key]
-  matrix[i][j]["_#{key}"] = item
-  for j_ in [ 0...N ]
-    continue if j_ is j
-    matrix = exclude key, matrix, i, j_, item
+  matrix[i][j] = item
   for i_ in [ 0...N ]
-    continue if i_ is i
-    matrix = exclude key, matrix, i_, j, item
+    for j_ in [ 0...N ]
+      continue if i_ is i and j_ is j
+      matrix = exclude matrix, i_, j_, item
   return matrix
 
-set = (key, matrix, i, j, item) ->
+set = (matrix, i, j, item) ->
   matrix = clone matrix
-  matrix[i][j][key] = [ item ]
-  return reduce key, matrix, i, j
+  matrix[i][j] = [ item ]
+  return reduce matrix, i, j
 
 isCellComplete = (matrix, i, j) ->
-  cell = matrix[i][j]
-  return cell._letter? and cell._number?
+  return not isArray matrix[i][j]
 
-isMatrixComplete = ->
+isMatrixComplete = (matrix) ->
   for i in [ 0...N ]
     for j in [ 0...N ]
       return false if not isCellComplete matrix, i, j
   return true
 
-forkByKey = (key, matrices) ->
+fork = (matrices) ->
   candidates = []
-
-  if not matrices?.length
-    return candidates
 
   for matrix in matrices
     minLength = Infinity
@@ -69,16 +70,16 @@ forkByKey = (key, matrices) ->
     j_ = 0
     for i in [ 0...N ]
       for j in [ 0...N ]
-        if matrix[i][j][key]? and (l = matrix[i][j][key].length) < minLength
+        if isArray(matrix[i][j]) and (l = matrix[i][j].length) < minLength
           i_ = i
           j_ = j
           minLength = l
 
     continue if minLength is Infinity
 
-    for item in matrix[i_][j_][key]
+    for item in matrix[i_][j_]
       try
-        matrix_ = set key, matrix, i_, j_, item
+        matrix_ = set matrix, i_, j_, item
         if isMatrixComplete matrix_
           return found: true, matrix: matrix_
         candidates.push matrix_
@@ -86,26 +87,19 @@ forkByKey = (key, matrices) ->
   if candidates.length is 0
     throw new Error('nothing')
 
-  return candidates
+  return fork candidates
 
-fork = (matrices) ->
-  if not matrices?.length
-    return null
-  try
-    matrices = forkByKey 'letter', matrices
-    if matrices?.found
-      return matrices
-    matrices = forkByKey 'number', matrices
-    if matrices?.found
-      return matrices
-    return fork matrices
-  catch e
-    console.log e, e.stack
 
 matrix = buildMatrix()
 
 for i in [ 0...N ]
-  matrix = set 'letter', matrix, 0, i, letters[i]
-  matrix = set 'number', matrix, 0, i, i + 1
+  matrix = set matrix, 0, i, buildOption(i, i)
 
-log fork [ matrix ]
+log matrix
+
+foundMatrix = fork [ matrix ]
+if foundMatrix?.found
+  result = foundMatrix.matrix.map (row) ->
+    row.join(' ')
+  .join('\n')
+  console.log result
